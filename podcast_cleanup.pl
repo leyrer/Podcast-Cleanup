@@ -20,6 +20,8 @@
 
 use strict;
 use File::stat;
+use File::Spec;
+use File::Copy;
 
 
 my $logfile = 'D:\Dokumente und Einstellungen\m3\Eigene Dateien\Projekte\Podcast-Cleanup\log.txt';
@@ -31,6 +33,10 @@ open(LOG, ">>$logfile") or die "Schreibfehler LOG! - $!\n";
 
 my $fn		= ( not defined( $ENV{"GPODDER_EPISODE_FILENAME"} ) ) ? 
 					$ARGV[0] : $ENV{"GPODDER_EPISODE_FILENAME"};
+my ($volume,$podcastdir,$file) = File::Spec->splitpath( $fn );
+$podcastdir = $volume . $podcastdir;
+
+$fn =~ /(^|\\|\/)([^\\\/]+)(^|\\|\/)([^\\\/]+)([^\\\/]+)$/i;
 my $title	= $ENV{"GPODDER_EPISODE_TITLE"};
 my $pubdate	= $ENV{"GPODDER_EPISODE_PUBDATE"};
 my $jahr;
@@ -41,6 +47,8 @@ if(not defined ($ENV{"GPODDER_EPISODE_PUBDATE"}) ) {
 	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime($pubdate);
 	$jahr = 1900 + $year;
 }
+
+Check4Cover($podcastdir);
 
 if( $fn =~ /StackOverflow/i ) {
 	StackOverflow($fn);
@@ -57,13 +65,15 @@ sub StackOverflow {
 	print LOG "Working on '$filename' ...\n";
 	my $cover = getCover($filename);
 	
-	$cmd = "$metamp3 --pict $cover $filename";
+	$cmd = "$metamp3 --pict $cover.png $filename";
 	print LOG "$cmd\n";
 	system($cmd);
 
-	$cmd = "$id3 -2 -1 -M -y $jahr -t \"$title\" $filename";
-	print LOG "$cmd\n";
-	system($cmd);
+	if( defined $title and $title ne '' ) {
+		$cmd = "$id3 -2 -1 -M -y $jahr -t \"$title\" $filename";
+		print LOG "$cmd\n";
+		system($cmd);
+	}
 }
 
 sub getCover {
@@ -72,4 +82,13 @@ sub getCover {
 	return("$1\\cover");
 }
 
+sub Check4Cover {
+	my($dir) = @_;
+	my $src = $dir . "cover";
+	my $dst = $dir . "cover.png";
+	print "$src => $dst\n";
+	if( not -f $dst ) {
+		copy($src, $dst);
+	}
+}
 
